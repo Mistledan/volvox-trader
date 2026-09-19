@@ -4,14 +4,14 @@ from __future__ import annotations
 from typing import Any
 
 from ..config import RiskConfig
-from ..trading.broker import PaperBroker
+from ..trading.store import PortfolioStore
 from .base import BaseAgent
 
 
 class RiskAgent(BaseAgent):
     name = "risk"
 
-    def __init__(self, cfg: RiskConfig, broker: PaperBroker) -> None:
+    def __init__(self, cfg: RiskConfig, broker: PortfolioStore) -> None:
         super().__init__()
         self.cfg = cfg
         self.broker = broker
@@ -50,8 +50,8 @@ class RiskAgent(BaseAgent):
             if order_size > max_order * 1.05:
                 checks.append(f"order too large: {order_size:.2f} > {max_order:.2f}")
                 ok = False
-            if order_size > self.broker.portfolio.cash_usd:
-                order_size = self.broker.portfolio.cash_usd
+            if order_size > self.broker.cash:
+                order_size = self.broker.cash
                 checks.append("order clipped to available cash")
             decision["order_size_usd"] = order_size
 
@@ -62,12 +62,12 @@ class RiskAgent(BaseAgent):
 
         # 4) portfolio cap + max positions
         if action == "buy":
-            if len(self.broker.portfolio.positions) >= self.cfg.max_open_positions:
+            if len(self.broker.positions) >= self.cfg.max_open_positions:
                 checks.append("max open positions reached")
                 ok = False
             price = prices.get(symbol, 0.0)
             if price > 0:
-                current_value = self.broker.portfolio.positions.get(symbol)
+                current_value = self.broker.positions.get(symbol)
                 cur = current_value.quantity * price if current_value else 0.0
                 if cur + order_size > self.cfg.max_position_pct * equity:
                     checks.append("position would exceed max_position_pct")

@@ -13,6 +13,9 @@ dist/
 # Runtime data / logs
 logs/
 *.state.json
+data/
+*.sqlite3
+*.db
 
 # Tooling
 .pytest_cache/

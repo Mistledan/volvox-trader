@@ -49,6 +49,7 @@ class PaperBroker:
         self.portfolio = Portfolio(initial_balance=initial_balance)
         self.data_file = Path(data_file) if data_file else None
         self._prices: dict[str, float] = {}
+        self.decisions: list[dict[str, Any]] = []
         if self.data_file and self.data_file.exists():
             self._load()
 
@@ -60,6 +61,22 @@ class PaperBroker:
         return self._prices.get(symbol, 0.0)
 
     # ---- account -------------------------------------------------------
+    @property
+    def cash(self) -> float:
+        return self.portfolio.cash_usd
+
+    @property
+    def initial_balance(self) -> float:
+        return self.portfolio.initial_balance
+
+    @property
+    def positions(self) -> dict[str, Position]:
+        return self.portfolio.positions
+
+    @property
+    def trades(self) -> list[Trade]:
+        return self.portfolio.trades
+
     def equity(self, prices: dict[str, float] | None = None) -> float:
         prices = prices or self._prices
         loc = self.portfolio.cash_usd
@@ -123,6 +140,9 @@ class PaperBroker:
 
     def realized_today(self) -> float:
         return self.portfolio.last_pnl_per_day.get(self.day_key(), 0.0)
+
+    def record_decision(self, decision: dict[str, Any], status: str = "noop") -> None:
+        self.decisions.append({"decision": decision, "status": status, "timestamp": time.time()})
 
     # ---- persistence ---------------------------------------------------
     def _state(self) -> dict[str, Any]:

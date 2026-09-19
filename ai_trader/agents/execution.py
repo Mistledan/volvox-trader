@@ -3,14 +3,14 @@ from __future__ import annotations
 
 from typing import Any
 
-from ..trading.broker import PaperBroker
+from ..trading.store import PortfolioStore
 from .base import BaseAgent
 
 
 class ExecutionAgent(BaseAgent):
     name = "execution"
 
-    def __init__(self, broker: PaperBroker) -> None:
+    def __init__(self, broker: PortfolioStore) -> None:
         super().__init__()
         self.broker = broker
 
@@ -38,7 +38,7 @@ class ExecutionAgent(BaseAgent):
                 trade = self.broker.market_buy(symbol, size, price, reason=reason, confidence=confidence)
                 status = "filled"
             else:
-                pos = self.broker.portfolio.positions.get(symbol)
+                pos = self.broker.positions.get(symbol)
                 if pos is None:
                     return {"trade": None, "status": "no_position", "symbol": symbol}
                 fraction = float(decision.get("order_size_usd") or 1.0)

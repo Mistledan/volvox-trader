@@ -13,6 +13,7 @@ dependencies = [
     "rich>=13.0,<14",
     "fastapi>=0.110,<1",
     "uvicorn>=0.29,<2",
+    "sqlalchemy>=2.0,<3",
 ]
 
 [project.optional-dependencies]
@@ -24,6 +25,7 @@ dev = [
 [project.scripts]
 ai-trader = "ai_trader.main:main"
 ai-trader-dashboard = "ai_trader.dashboard:main"
+ai-trader-server = "ai_trader.server:main"
 
 [build-system]
 requires = ["setuptools>=68"]

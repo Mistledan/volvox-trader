@@ -65,6 +65,13 @@ ai-trader-dashboard   # or: python -m ai_trader.dashboard
 # open http://127.0.0.1:8079
 ```
 
+Run the multi-user SaaS API (auth, per-user paper portfolios, decisions, leaderboard):
+
+```bash
+ai-trader-server      # or: python -m ai_trader.server
+# OpenAPI docs at http://127.0.0.1:8080/api/v1/docs
+```
+
 Run tests:
 
 ```bash
@@ -95,6 +102,11 @@ is configured with real exchange credentials. Use at your own risk.
 Deploy the whole stack (bot + dashboard, $0/month) on Oracle Cloud Always Free,
 or run it in Docker. See [`deploy/DEPLOY.md`](deploy/DEPLOY.md) for the full
 walkthrough. Vercel/serverless is not suitable (needs a persistent host).
+
+## Documentation
+
+- [`docs/ROADMAP.md`](docs/ROADMAP.md) — product plan: SaaS website + mobile app + real-funds phases
+- [`docs/ARCHITECTURE.md`](docs/ARCHITECTURE.md) — how the brain, stores, and API fit together
 
 ## Roadmap
 
