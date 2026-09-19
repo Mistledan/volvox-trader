@@ -1,0 +1,46 @@
+# AI-Trader configuration
+# Provider is OpenAI-compatible: openai, anthropic, groq, ollama, gemini... (via LiteLLM)
+
+mode: paper                # paper | live
+
+exchange:
+  id: binance              # fallback when no --exchange flag; tries in order below
+  sandbox: false
+
+exchanges:                 # multi-exchange fallback chain (ccxt ids)
+  - id: binance
+  - id: gate
+  - id: htx
+  - id: mexc
+  - id: whitebit
+
+symbols:
+  - BTC/USDT
+  - ETH/USDT
+
+timeframe: 1h
+cycle_seconds: 300         # how often the agent loop runs
+bars_to_fetch: 200         # OHLCV bars for indicators
+
+llm:
+  provider: ollama         # model routing via LiteLLM
+  model: ollama/ai-trader  # local 3B model (qwen2.5, registered in Ollama)
+  api_base: http://localhost:11434
+  temperature: 0.2
+  max_tokens: 1024
+
+risk:
+  max_position_pct: 0.20   # max fraction of equity in a single position
+  max_daily_loss_pct: 0.05 # halt trading if equity drops this much in a day
+  min_confidence: 0.60     # strategist must be >= this confident to trade
+  order_size_pct: 0.10     # fraction of equity per order
+  max_open_positions: 5
+
+paper:
+  initial_balance_usd: 10000
+  max_history_minutes: 60  # keep trade log this long in memory state
+  data_file: logs/paper_state.json
+
+logging:
+  level: INFO
+  file: logs/ai-trader.log

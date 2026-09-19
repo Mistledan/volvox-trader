@@ -1,0 +1,26 @@
+# Python
+__pycache__/
+*.py[cod]
+*.egg-info/
+.eggs/
+build/
+dist/
+.venv/
+
+# Env / secrets
+.env
+
+# Runtime data / logs
+logs/
+*.state.json
+
+# Tooling
+.pytest_cache/
+.coverage
+
+# IDE / OS
+.idea/
+.vscode/
+*.swp
+.DS_Store
+Thumbs.db

@@ -1,0 +1,33 @@
+[project]
+name = "ai-trader"
+version = "0.1.0"
+description = "AI-Trader: 100% Fully-Automated Agent-Native Trading"
+requires-python = ">=3.12"
+dependencies = [
+    "ccxt>=4.0,<6",
+    "litellm>=1.40,<2",
+    "pyyaml>=6.0,<7",
+    "pandas>=2.0,<3",
+    "numpy>=1.26,<3",
+    "python-dotenv>=1.0,<2",
+    "rich>=13.0,<14",
+    "fastapi>=0.110,<1",
+    "uvicorn>=0.29,<2",
+]
+
+[project.optional-dependencies]
+dev = [
+    "pytest>=8.0,<9",
+    "pytest-asyncio>=0.23,<1",
+]
+
+[project.scripts]
+ai-trader = "ai_trader.main:main"
+ai-trader-dashboard = "ai_trader.dashboard:main"
+
+[build-system]
+requires = ["setuptools>=68"]
+build-backend = "setuptools.build_meta"
+
+[tool.setuptools.packages.find]
+include = ["ai_trader*"]
