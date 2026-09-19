@@ -90,9 +90,15 @@ config/default.yaml
 This is a **paper-trading** bot. It never touches real money unless `mode: live`
 is configured with real exchange credentials. Use at your own risk.
 
+## Deployment
+
+Deploy the whole stack (bot + dashboard, $0/month) on Oracle Cloud Always Free,
+or run it in Docker. See [`deploy/DEPLOY.md`](deploy/DEPLOY.md) for the full
+walkthrough. Vercel/serverless is not suitable (needs a persistent host).
+
 ## Roadmap
 
 - [ ] Backtesting on historical OHLCV
 - [ ] Live exchange trading (config-gated)
-- [ ] Public deployment (bot needs a persistent host; dashboard can be exposed)
+- [ ] HTTPS + custom domain via Caddy
 - [ ] News / sentiment input for the strategy agent

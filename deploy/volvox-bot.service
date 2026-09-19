@@ -1,0 +1,16 @@
+[Unit]
+Description=Volvox Trader - autonomous agent loop
+After=network-online.target ollama.service
+Wants=network-online.target
+
+[Service]
+Type=simple
+User=volvox
+WorkingDirectory=/opt/volvox-trader
+ExecStart=/opt/volvox-trader/.venv/bin/ai-trader --config /opt/volvox-trader/config/production.yaml --run
+Restart=always
+RestartSec=30
+Environment=OLLAMA_HOST=127.0.0.1:11434
+
+[Install]
+WantedBy=multi-user.target

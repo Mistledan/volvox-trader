@@ -1,0 +1,46 @@
+# AI-Trader production configuration (used on the deployed host).
+# Mirrors default.yaml but targets a fresh Ollama install on the server.
+# NOTE: never put real API keys here - use the .env file (gitignored).
+
+mode: paper                # paper | live
+
+exchange:
+  id: binance              # fallback when no --exchange flag; tries in order below
+  sandbox: false
+
+exchanges:                 # multi-exchange fallback chain (ccxt ids)
+  - id: binance
+  - id: gate
+  - id: htx
+  - id: mexc
+  - id: whitebit
+
+symbols:
+  - BTC/USDT
+  - ETH/USDT
+
+timeframe: 1h
+cycle_seconds: 360         # generous on a 2-core ARM box; inference is slow
+bars_to_fetch: 200         # OHLCV bars for indicators
+
+llm:
+  provider: ollama
+  model: ollama/qwen2.5:3b # pulled from registry on the server
+  temperature: 0.2
+  max_tokens: 1024
+
+risk:
+  max_position_pct: 0.20
+  max_daily_loss_pct: 0.05
+  min_confidence: 0.60
+  order_size_pct: 0.10
+  max_open_positions: 5
+
+paper:
+  initial_balance_usd: 10000
+  max_history_minutes: 60
+  data_file: logs/paper_state.json
+
+logging:
+  level: INFO
+  file: logs/ai-trader.log

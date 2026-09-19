@@ -1,0 +1,17 @@
+[Unit]
+Description=Volvox Trader - live dashboard
+After=network-online.target
+Wants=network-online.target
+
+[Service]
+Type=simple
+User=volvox
+WorkingDirectory=/opt/volvox-trader
+Environment=DASH_HOST=0.0.0.0
+Environment=DASH_PORT=8079
+ExecStart=/opt/volvox-trader/.venv/bin/ai-trader-dashboard
+Restart=always
+RestartSec=10
+
+[Install]
+WantedBy=multi-user.target

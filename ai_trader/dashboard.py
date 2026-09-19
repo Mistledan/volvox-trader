@@ -9,6 +9,7 @@ started/stopped independently without touching the trading loop.
 from __future__ import annotations
 
 import json
+import os
 import re
 import time
 from typing import Any
@@ -282,7 +283,8 @@ setInterval(tick, 5000);
 
 
 def main() -> None:
-    host, port = "127.0.0.1", 8079
+    host = os.getenv("DASH_HOST", "127.0.0.1")
+    port = int(os.getenv("DASH_PORT", "8079"))
     log.info("Dashboard: http://%s:%d  (reads %s)", host, port, DATA_FILE)
     uvicorn.run(app, host=host, port=port, log_level="warning")
 
