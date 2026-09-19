@@ -215,11 +215,50 @@ PAGE = """<!doctype html>
   .b-hold { background:rgba(241,196,15,.15); color:var(--amber); }
   .ready { color:var(--green); } .stale { color:var(--red); }
   .dot { display:inline-block; width:8px; height:8px; border-radius:50%; margin-right:6px; }
+  .info { background:var(--card); border:1px solid var(--line); border-radius:10px; padding:14px 16px; margin-bottom:16px; }
+  .info-head { font-size:14px; font-weight:600; cursor:pointer; user-select:none; }
+  .info-head .tgl { float:right; color:var(--dim); }
+  .info-body { margin-top:12px; color:var(--txt); font-size:13px; line-height:1.65; }
+  .info-body p { margin-bottom:10px; }
+  .info-body li { margin-left:18px; margin-bottom:8px; }
+  .flow { display:flex; flex-wrap:wrap; gap:8px; align-items:center; margin:10px 0 12px; }
+  .step { background:#0f1830; border:1px solid var(--line); border-radius:8px; padding:8px 12px; font-size:12.5px; }
+  .step b { color:var(--blue); margin-right:6px; }
+  .flow span { color:var(--dim); }
+  .footer { color:var(--dim); font-size:12px; text-align:center; margin-top:16px; line-height:1.8; }
+  .footer a { color:var(--blue); text-decoration:none; }
 </style>
 </head>
 <body>
   <h1>AI-Trader <span style="color:var(--blue)">Live Dashboard</span></h1>
   <div class="sub" id="status">Connecting...</div>
+  <div class="info">
+    <div class="info-head" onclick="toggleInfo()">How Volvox Trader works <span class="tgl" id="infoTgl">Hide</span></div>
+    <div class="info-body" id="infoBody">
+      <p>Volvox Trader is a <b>100% fully-automated, agent-native trading bot</b>. Every ~5 minutes it runs one
+      complete autonomous decision cycle &mdash; no human input. Four agents run in sequence:</p>
+      <div class="flow">
+        <div class="step"><b>1</b>Market</div><span>&#8594;</span>
+        <div class="step"><b>2</b>Strategy&nbsp;(AI)</div><span>&#8594;</span>
+        <div class="step"><b>3</b>Risk</div><span>&#8594;</span>
+        <div class="step"><b>4</b>Execution</div>
+      </div>
+      <ul>
+        <li><b>Market agent</b> &mdash; pulls live OHLCV + ticker data from the first reachable exchange in a
+        fallback chain (Binance &#8594; Gate.io &#8594; HTX &#8594; MEXC &#8594; WhiteBIT) and computes technical
+        indicators: SMA, EMA, RSI, MACD, Bollinger, ATR.</li>
+        <li><b>Strategy agent</b> &mdash; the "brain". An LLM running <b>100% locally (Ollama)</b> reviews the market
+        snapshot and your portfolio, then decides <i>buy</i>, <i>sell</i>, or <i>hold</i> with a confidence score and
+        order size.</li>
+        <li><b>Risk agent</b> &mdash; the referee. Blocks orders that exceed position limits, open-position caps,
+        a minimum confidence of 0.60, or daily-loss limits.</li>
+        <li><b>Execution agent</b> &mdash; fills approved orders on the paper broker and records the trade below.</li>
+      </ul>
+      <p>Every decision this bot has made is listed right here on this page; nothing is hidden. Everything you see is
+      <b>simulated paper trading</b> &mdash; it starts with $10,000 virtual and never touches real money.
+      <a href="/about" style="color:var(--blue)">Full write-up &#8594;</a></p>
+    </div>
+  </div>
   <div class="cards" id="cards"></div>
   <div class="grid">
     <div class="panel"><h2>Positions</h2><table id="pos"></table></div>
@@ -276,7 +315,108 @@ async function tick() {
 }
 tick();
 setInterval(tick, 5000);
+function toggleInfo() {
+  const b = document.getElementById("infoBody");
+  const open = b.style.display !== "none";
+  b.style.display = open ? "none" : "block";
+  document.getElementById("infoTgl").textContent = open ? "Show" : "Hide";
+}
 </script>
+  <div class="footer">
+    <b>Paper trading only</b> &mdash; no real money involved.<br>
+    Source &amp; full docs: <a href="https://github.com/Mistledan/volvox-trader" target="_blank">github.com/Mistledan/volvox-trader</a>
+  </div>
+</body>
+</html>
+"""
+
+
+@app.get("/about", response_class=HTMLResponse)
+def about() -> str:
+    return ABOUT_PAGE
+
+
+ABOUT_PAGE = """<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>How Volvox Trader works</title>
+<style>
+  :root { --bg:#0b1020; --card:#121a2e; --line:#1f2a44; --txt:#dbe4f5; --dim:#7d8db0;
+          --green:#2ecc71; --red:#e74c3c; --amber:#f1c40f; --blue:#4aa3ff; }
+  * { box-sizing:border-box; margin:0; padding:0; }
+  body { background:var(--bg); color:var(--txt); font:15px/1.7 Segoe UI, system-ui, sans-serif; }
+  .wrap { max-width:760px; margin:0 auto; padding:32px 20px 40px; }
+  h1 { font-size:26px; margin-bottom:6px; }
+  .tag { color:var(--dim); margin-bottom:24px; font-size:13px; }
+  .panel { background:var(--card); border:1px solid var(--line); border-radius:12px; padding:20px 22px; margin-bottom:20px; }
+  .panel h2 { font-size:15px; text-transform:uppercase; letter-spacing:.5px; color:var(--blue); margin-bottom:10px; }
+  .panel p { margin-bottom:10px; }
+  .panel ul { margin-left:20px; }
+  .panel li { margin-bottom:8px; }
+  .flow { display:flex; flex-wrap:wrap; gap:8px; align-items:center; margin:14px 0; }
+  .step { background:#0f1830; border:1px solid var(--line); border-radius:8px; padding:9px 14px; font-size:13.5px; }
+  .step b { color:var(--blue); margin-right:7px; }
+  .flow span { color:var(--dim); }
+  .note { border-left:3px solid var(--amber); background:#141c31; padding:10px 14px; border-radius:6px; font-size:13.5px; color:var(--txt); }
+  .links { margin-top:26px; text-align:center; font-size:13.5px; }
+  .links a { color:var(--blue); text-decoration:none; margin:0 10px; }
+</style>
+</head>
+<body>
+<div class="wrap">
+  <h1>Volvox Trader</h1>
+  <div class="tag">100% fully-automated, agent-native crypto trading &middot; live &amp; simulated</div>
+
+  <div class="panel">
+    <h2>What this is</h2>
+    <p>Volvox Trader is an autonomous trading bot with <b>no human in the loop</b>. Once running, it watches the
+    crypto markets, reasons about them with an AI model, and places trades on a paper account &mdash; all by itself,
+    around the clock. Every action it takes is published on the <a href="/" style="color:var(--blue)">live dashboard</a>.</p>
+  </div>
+
+  <div class="panel">
+    <h2>How one decision cycle works</h2>
+    <p>About every five minutes the bot runs a full cycle. Four specialised agents cooperate:</p>
+    <div class="flow">
+      <div class="step"><b>1</b>Market</div><span>&#8594;</span>
+      <div class="step"><b>2</b>Strategy&nbsp;(AI)</div><span>&#8594;</span>
+      <div class="step"><b>3</b>Risk</div><span>&#8594;</span>
+      <div class="step"><b>4</b>Execution</div>
+    </div>
+    <ul>
+      <li><b>Market agent</b> collects live price history (OHLCV) and tickers from the first reachable exchange in a
+      fallback chain &mdash; Binance, Gate.io, HTX, MEXC, WhiteBIT &mdash; and computes classic indicators:
+      SMA, EMA, RSI, MACD, Bollinger Bands and ATR, so the AI sees a compact picture of momentum and volatility.</li>
+      <li><b>Strategy agent</b> is the brain: a language model reviews the snapshot together with the current portfolio
+      and, without human input, outputs a structured decision &mdash; <i>buy</i>, <i>sell</i> or <i>hold</i>, with a
+      confidence score (0-100%) and an order size. The model runs <b>100% locally via Ollama</b> &mdash; your market data
+      never leaves the machine.</li>
+      <li><b>Risk agent</b> is the referee. Even a brilliant idea gets rejected if it breaks the guardrails:
+      maximum size per position (20% of equity), a 5% daily-loss halt, a minimum confidence of 60% to trade, and a cap
+      of five simultaneous open positions.</li>
+      <li><b>Execution agent</b> fills the approved order on the paper broker at the live price and records the fill.
+      Trades, positions and equity are what you see on the dashboard.</li>
+    </ul>
+  </div>
+
+  <div class="panel">
+    <h2>Why the dashboard matters</h2>
+    <p>Full transparency is by design. You can watch the AI think: every cycle's decision (action, symbol, confidence)
+    and every order fill is shown in real time. Nothing is decided behind a curtain &mdash; this is a bot you can audit,
+    pause, and tune from configuration alone.</p>
+  </div>
+
+  <div class="note">This is a <b>paper-trading simulation</b>. Positions start from $10,000 of virtual money and no real
+  funds are ever at risk. The project includes a config-gated "live" mode intended only for later, opt-in use at your
+  own risk.</div>
+
+  <div class="links">
+    <a href="/">Back to live dashboard</a>
+    <a href="https://github.com/Mistledan/volvox-trader" target="_blank">Source code on GitHub</a>
+  </div>
+</div>
 </body>
 </html>
 """
