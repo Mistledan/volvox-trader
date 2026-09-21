@@ -1,27 +1,26 @@
 $ErrorActionPreference = "SilentlyContinue"
-# Keeps the API (:8080) and web dev server (:3000) alive.
-# The sandbox on this machine periodically reaps detached processes, so we re-launch them.
+# Keeps Volvox Trader alive: API on :8080 and web dev server on :3000.
+# This sandbox reaps detached processes, so we relaunch whatever dies.
+# Port checks are specific to our services (other projects also run python/node).
 
-function Test-Url([string]$url, [int]$timeoutSec = 6) {
-  try { Invoke-WebRequest -Uri $url -UseBasicParsing -TimeoutSec $timeoutSec | Out-Null; return $true }
-  catch { return $false }
+function Test-Up([int]$port) {
+  return [bool](Get-NetTCPConnection -LocalPort $port -State Listen -ErrorAction SilentlyContinue)
 }
 
 $apiScript = "C:\Users\Mistledan\Downloads\ai-trader\scripts\api-run.ps1"
 $webScript = "C:\Users\Mistledan\Downloads\ai-trader\scripts\web-run.ps1"
+$apiLast = [datetime]::MinValue
+$webLast = [datetime]::MinValue
 
 while ($true) {
-  if (-not (Test-Url "http://127.0.0.1:8080/api/v1/health")) {
-    $py = Get-Process python -ErrorAction SilentlyContinue
-    if (-not $py) {
-      Start-Process powershell -ArgumentList "-WindowStyle", "Hidden", "-ExecutionPolicy", "Bypass", "-File", $apiScript
-    }
+  $now = Get-Date
+  if (-not (Test-Up 8080) -and ($now - $apiLast).TotalSeconds -gt 45) {
+    Start-Process powershell -ArgumentList "-NoProfile", "-WindowStyle", "Hidden", "-ExecutionPolicy", "Bypass", "-File", $apiScript
+    $apiLast = $now
   }
-  if (-not (Test-Url "http://127.0.0.1:3000/")) {
-    $node = Get-Process node -ErrorAction SilentlyContinue
-    if (-not $node) {
-      Start-Process powershell -ArgumentList "-WindowStyle", "Hidden", "-ExecutionPolicy", "Bypass", "-File", $webScript
-    }
+  if (-not (Test-Up 3000) -and ($now - $webLast).TotalSeconds -gt 30) {
+    Start-Process powershell -ArgumentList "-NoProfile", "-WindowStyle", "Hidden", "-ExecutionPolicy", "Bypass", "-File", $webScript
+    $webLast = $now
   }
-  Start-Sleep -Seconds 20
+  Start-Sleep -Seconds 15
 }
