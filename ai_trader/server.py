@@ -13,7 +13,7 @@ from typing import Any, Iterator
 
 from fastapi import Depends, FastAPI, Header, HTTPException, status
 from fastapi.middleware.cors import CORSMiddleware
-from fastapi.responses import HTMLResponse
+from fastapi.responses import FileResponse, HTMLResponse
 from pydantic import BaseModel
 from sqlalchemy import select
 from sqlalchemy.orm import Session
@@ -29,6 +29,8 @@ init_db()
 
 _market: MarketData | None = None
 _price_cache: dict[str, Any] = {"at": 0.0, "prices": {}}
+
+WEB_DIST = PROJECT_ROOT / "web" / "dist"
 
 
 class FakeLLM:
@@ -287,6 +289,9 @@ def health() -> dict[str, Any]:
 
 @app.get("/", response_class=HTMLResponse)
 def index() -> str:
+    web_index = WEB_DIST / "index.html"
+    if web_index.is_file():
+        return FileResponse(web_index)
     return (
         "<html><body style='font-family:system-ui;background:#0b1020;color:#e6edf7;padding:32px'><h1>Volvox Trader API</h1>"
         "<p>Multi-user paper-trading backend.</p>"
@@ -296,6 +301,23 @@ def index() -> str:
         "<li>Leaderboard: <a href='/api/v1/leaderboard'>/api/v1/leaderboard</a></li>"
         "</ul></body></html>"
     )
+
+
+@app.get("/{path:path}", include_in_schema=False)
+def spa(path: str) -> Any:
+    """Serve the built SPA (web/dist) with fallback to index.html for client routes."""
+    if path.startswith("api/"):
+        raise HTTPException(status_code=404, detail="unknown API endpoint")
+    if WEB_DIST.is_dir():
+        candidate = (WEB_DIST / path).resolve()
+        try:
+            candidate.relative_to(WEB_DIST.resolve())
+        except ValueError as exc:
+            raise HTTPException(status_code=404, detail="bad path") from exc
+        if path and candidate.is_file():
+            return FileResponse(candidate)
+        return FileResponse(WEB_DIST / "index.html")
+    raise HTTPException(status_code=404, detail="web application not built")
 
 
 def main() -> None:

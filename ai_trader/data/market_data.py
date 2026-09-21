@@ -1,6 +1,9 @@
 """Market data fetching via ccxt (exchange-agnostic, multi-exchange fallback)."""
 from __future__ import annotations
 
+import time
+from typing import Callable, TypeVar
+
 import ccxt
 import pandas as pd
 
@@ -9,6 +12,26 @@ from ..utils.logging import get_logger
 from . import indicators
 
 log = get_logger("ai_trader.data.market")
+
+T = TypeVar("T")
+
+
+def _retry(what: str, fn: Callable[[], T], attempts: int = 3, base_delay: float = 1.0) -> T:
+    """Call `fn` with exponential backoff so transient network blips don't kill a cycle."""
+    last: Exception | None = None
+    for i in range(attempts):
+        try:
+            return fn()
+        except Exception as exc:  # noqa: BLE001 - retry any transient failure
+            last = exc
+            if i < attempts - 1:
+                delay = base_delay * (2**i)
+                log.warning(
+                    "%s attempt %d/%d failed (%s); retrying in %.1fs",
+                    what, i + 1, attempts, exc, delay,
+                )
+                time.sleep(delay)
+    raise MarketDataError(f"{what} failed after {attempts} attempts: {last}") from last
 
 
 class MarketDataError(RuntimeError):
@@ -31,7 +54,7 @@ class MarketData:
         for cfg in exchange_cfgs:
             try:
                 optioned = self._instantiate(cfg.id, cfg.sandbox)
-                optioned.load_markets()
+                _retry(f"Exchange {cfg.id} load_markets", optioned.load_markets, attempts=2)
                 self._ex = optioned
                 self._exchange_id = cfg.id
                 break
@@ -52,7 +75,7 @@ class MarketData:
         return ex
 
     def load_markets(self, symbols: list[str]) -> None:
-        markets = self._ex.load_markets()
+        markets = _retry("load_markets", self._ex.load_markets, attempts=2)
         missing = [s for s in symbols if s not in markets]
         if missing:
             log.warning("Symbols not found on %s: %s", self._exchange_id, missing)
@@ -70,8 +93,11 @@ class MarketData:
     ) -> pd.DataFrame:
         """Fetch OHLCV and return an augmented DataFrame with indicators."""
         try:
-            raw = self._ex.fetch_ohlcv(symbol, timeframe=timeframe, limit=limit)
-        except ccxt.BaseError as exc:
+            raw = _retry(
+                f"fetch_ohlcv {symbol}",
+                lambda: self._ex.fetch_ohlcv(symbol, timeframe=timeframe, limit=limit),
+            )
+        except MarketDataError as exc:
             raise MarketDataError(f"fetch_ohlcv failed for {symbol} on {self.exchange_id}: {exc}") from exc
         if not raw:
             raise MarketDataError(f"No OHLCV returned for {symbol}")
@@ -80,8 +106,8 @@ class MarketData:
 
     def fetch_ticker(self, symbol: str) -> dict:
         try:
-            ticker = self._ex.fetch_ticker(symbol)
-        except ccxt.BaseError as exc:
+            ticker = _retry(f"fetch_ticker {symbol}", lambda: self._ex.fetch_ticker(symbol))
+        except MarketDataError as exc:
             raise MarketDataError(f"fetch_ticker failed for {symbol}: {exc}") from exc
         return {
             "symbol": symbol,

@@ -1,4 +1,4 @@
-export const API_URL: string = (import.meta.env.VITE_API_URL as string) || "http://127.0.0.1:8080";
+export const API_URL: string = (import.meta.env.VITE_API_URL as string || "").replace(/\/+$/, "");
 
 export function getToken(): string | null {
   return localStorage.getItem("vt_token");

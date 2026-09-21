@@ -70,6 +70,8 @@ Run the multi-user SaaS API (auth, per-user paper portfolios, decisions, leaderb
 ```bash
 ai-trader-server      # or: python -m ai_trader.server
 # OpenAPI docs at http://127.0.0.1:8080/api/v1/docs
+# The built web dashboard (web/dist) is served by the same process:
+#   http://127.0.0.1:8080   (rebuild with: cd web && npm run build)
 ```
 
 Run tests:

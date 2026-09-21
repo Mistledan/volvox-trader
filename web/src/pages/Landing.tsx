@@ -105,7 +105,7 @@ export default function Landing() {
       </div>
 
       <p className="muted" style={{ marginTop: 18, textAlign: "center" }}>
-        API base: <code>{API_URL}</code> · GitHub:{" "}
+        API base: <code>{API_URL || "/api (same origin)"}</code> · GitHub:{" "}
         <a href="https://github.com/Mistledan/volvox-trader" target="_blank" rel="noreferrer">
           Mistledan/volvox-trader
         </a>
