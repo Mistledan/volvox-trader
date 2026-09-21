@@ -20,7 +20,13 @@ function headers(): Record<string, string> {
 }
 
 export async function api<T = any>(path: string, opts: RequestInit = {}): Promise<T> {
-  const res = await fetch(`${API_URL}${path}`, { ...opts, headers: headers() });
+  let res: Response;
+  try {
+    res = await fetch(`${API_URL}${path}`, { ...opts, headers: headers() });
+  } catch {
+    const where = API_URL || (typeof location !== "undefined" ? location.origin : "the server");
+    throw new Error(`Can't reach the trading API at ${where}. Is the backend running? (scripts/api-run.ps1)`);
+  }
   if (!res.ok) {
     let detail = `${res.status} ${res.statusText}`;
     try {
