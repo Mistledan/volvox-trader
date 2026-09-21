@@ -10,7 +10,7 @@ Turning the paper-trading bot into a real AI trading website + mobile app.
 ## Phase 2 — Multi-user SaaS backend ✅ done
 - Database: users, tokens, accounts, holdings, trades, decisions (SQLite default → Postgres via `DATABASE_URL`)
 - Auth: register / login / bearer tokens (PBKDF2, stdlib)
-- API on `:8080`: portfolio, trades, decisions, run-cycle, leaderboard, health
+- API on `:8099`: portfolio, trades, decisions, run-cycle, leaderboard, health
 - Per-user paper portfolios via `DbPortfolioStore`; same agent pipeline drives every account
 - `ai-trader-server` entrypoint
 

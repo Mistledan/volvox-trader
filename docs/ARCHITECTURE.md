@@ -44,7 +44,7 @@ Both implement `ai_trader/trading/store.py:PortfolioStore`:
 Adding real trading later = a third implementation of the same protocol driven
 by ccxt with the user's encrypted exchange credentials.
 
-## SaaS API (`ai_trader/server.py`, port 8080)
+## SaaS API (`ai_trader/server.py`, port 8099)
 - FastAPI + SQLAlchemy. Auth via opaque bearer tokens (PBKDF2 passwords, SHA-256
   token hashes).
 - Routes: auth, `/me/*` portfolio/trades/decisions/cycle, public `/leaderboard`,
@@ -66,7 +66,7 @@ Postgres.
 ```
 ai-trader --run              # self-hosted bot loop (JSON broker, Ollama LLM)
 ai-trader-dashboard          # local dashboard @ :8079
-ai-trader-server             # SaaS API @ :8080 (multi-user, DB)
+ai-trader-server             # SaaS API @ :8099 (multi-user, DB)
 ```
 
 ## Deployment

@@ -2,7 +2,7 @@
 
 This is the API the future web app and mobile app will consume.
 Run:  ai-trader-server   (or: python -m ai_trader.server)
-Docs: http://127.0.0.1:8080/api/v1/docs  (OpenAPI)
+Docs: http://127.0.0.1:8099/api/v1/docs  (OpenAPI)
 """
 from __future__ import annotations
 
@@ -322,7 +322,7 @@ def spa(path: str) -> Any:
 
 def main() -> None:
     host = os.getenv("SERVER_HOST", "127.0.0.1")
-    port = int(os.getenv("SERVER_PORT", "8080"))
+    port = int(os.getenv("SERVER_PORT", "8099"))
     import uvicorn
 
     uvicorn.run(app, host=host, port=port, log_level="warning")

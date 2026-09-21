@@ -1,5 +1,5 @@
 $ErrorActionPreference = "SilentlyContinue"
-# Keeps Volvox Trader alive: API on :8080 and web dev server on :3000.
+# Keeps Volvox Trader alive: API on :8099 and web dev server on :3005.
 # This sandbox reaps detached processes, so we relaunch whatever dies.
 # Port checks are specific to our services (other projects also run python/node).
 
@@ -14,11 +14,11 @@ $webLast = [datetime]::MinValue
 
 while ($true) {
   $now = Get-Date
-  if (-not (Test-Up 8080) -and ($now - $apiLast).TotalSeconds -gt 45) {
+  if (-not (Test-Up 8099) -and ($now - $apiLast).TotalSeconds -gt 45) {
     Start-Process powershell -ArgumentList "-NoProfile", "-WindowStyle", "Hidden", "-ExecutionPolicy", "Bypass", "-File", $apiScript
     $apiLast = $now
   }
-  if (-not (Test-Up 3000) -and ($now - $webLast).TotalSeconds -gt 30) {
+  if (-not (Test-Up 3005) -and ($now - $webLast).TotalSeconds -gt 30) {
     Start-Process powershell -ArgumentList "-NoProfile", "-WindowStyle", "Hidden", "-ExecutionPolicy", "Bypass", "-File", $webScript
     $webLast = $now
   }
