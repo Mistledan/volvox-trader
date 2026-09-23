@@ -1,79 +1,39 @@
 import { useCallback, useEffect, useState } from "react";
-import { api, fmtUsd } from "../api";
-
-interface Position {
-  symbol: string;
-  quantity: number;
-  avg_price: number;
-  value_usd: number;
-  unrealized_pnl_usd: number;
-}
-interface Portfolio {
-  equity_usd: number;
-  cash_usd: number;
-  initial_balance_usd: number;
-  pnl_usd: number;
-  pnl_pct: number;
-  realized_today_usd: number;
-  positions: Position[];
-  updated_at: string;
-}
-interface Decision {
-  action: string;
-  symbol: string;
-  confidence: number;
-  size: number;
-  reasoning: string;
-  status: string;
-  timestamp: number;
-}
-interface TradeRec {
-  time: number;
-  side: string;
-  symbol: string;
-  quantity: number;
-  price: number;
-  value_usd: number;
-  pnl_usd: number;
-  reasoning: string;
-}
-interface LeaderRow {
-  username: string;
-  equity_usd: number;
-  pnl_pct: number;
-}
+import { api, fmtPct, fmtQty, fmtTs, fmtUsd } from "../api";
+import EquityChart, { type EquityPoint } from "../components/EquityChart";
+import type { Decision, Me, Portfolio, TradeRec } from "../types";
 
 function pill(action: string): string {
   const a = action.toLowerCase();
   return a === "buy" ? "p-buy" : a === "sell" ? "p-sell" : "p-hold";
 }
-function fmtTs(ts: number): string {
-  return new Date(ts * 1000).toLocaleString();
-}
 const cls = (n: number) => (n > 0 ? "pos" : n < 0 ? "neg" : "");
 
 export default function Dashboard() {
   const [pf, setPf] = useState<Portfolio | null>(null);
+  const [me, setMe] = useState<Me | null>(null);
+  const [equity, setEquity] = useState<EquityPoint[]>([]);
   const [decisions, setDecisions] = useState<Decision[]>([]);
   const [trades, setTrades] = useState<TradeRec[]>([]);
-  const [board, setBoard] = useState<LeaderRow[]>([]);
   const [running, setRunning] = useState(false);
-  const [lastRun, setLastRun] = useState<string>("");
+  const [lastRun, setLastRun] = useState("");
   const [err, setErr] = useState("");
 
   const load = useCallback(async (refresh = false) => {
     setErr("");
     try {
-      const [p, d, t, lb] = (await Promise.all([
+      const [p, d, t, e, m] = (await Promise.all([
         api<Portfolio>("/api/v1/me/portfolio", refresh ? { cache: "no-store" } : undefined),
         api<{ decisions: Decision[] }>("/api/v1/me/decisions", refresh ? { cache: "no-store" } : undefined),
         api<{ trades: TradeRec[] }>("/api/v1/me/trades", refresh ? { cache: "no-store" } : undefined),
-        api<{ users: LeaderRow[] }>("/api/v1/leaderboard"),
-      ])) as [Portfolio, { decisions: Decision[] }, { trades: TradeRec[] }, { users: LeaderRow[] }];
+        api<{ points: EquityPoint[] }>("/api/v1/me/equity", refresh ? { cache: "no-store" } : undefined),
+        api<Me>("/api/v1/me"),
+      ])) as [Portfolio, { decisions: Decision[] }, { trades: TradeRec[] }, { points: EquityPoint[] }, Me];
       setPf(p);
       setDecisions(d.decisions);
       setTrades(t.trades);
-      setBoard(lb.users);
+      setEquity(e.points);
+      setMe(m);
     } catch (ex) {
       setErr(String((ex as Error).message));
     }
@@ -91,10 +51,9 @@ export default function Dashboard() {
     setErr("");
     setLastRun("…thinking");
     try {
-      const r = await api<{ decision: Decision; status: string; risk_ok: boolean }>(
-        "/api/v1/me/cycle",
-        { method: "POST" }
-      );
+      const r = await api<{ decision: Decision; status: string }>("/api/v1/me/cycle", {
+        method: "POST",
+      });
       setLastRun(
         `${r.decision.action.toUpperCase()} · ${r.decision.symbol} · conf ${Math.round(
           r.decision.confidence * 100
@@ -110,33 +69,44 @@ export default function Dashboard() {
   }
 
   return (
-    <div className="wrap">
-      <h1 style={{ fontSize: 24, marginBottom: 4 }}>Your portfolio</h1>
-      <p className="muted" style={{ marginBottom: 16 }}>
-        {pf ? `updated ${pf.updated_at}` : "loading…"}
+    <>
+      <h1 style={{ fontSize: 20 }}>Overview</h1>
+      <p className="muted" style={{ marginTop: 2, marginBottom: 14 }}>
+        {pf ? `updated ${pf.updated_at}` : "loading…"} ·{" "}
+        {me?.autopilot ? (
+          <span className="pos">autopilot ON</span>
+        ) : (
+          <span className="muted">autopilot off</span>
+        )}
+        {me?.leader_username ? <> · following {me.leader_username}</> : null}
       </p>
 
       {err && <div className="err" style={{ marginBottom: 12 }}>{err}</div>}
 
+      {pf?.daily_loss_halted && (
+        <div className="halted-banner">
+          Daily loss limit reached — the risk circuit breaker has paused new positions for today.
+        </div>
+      )}
+
       <div className="cards">
         <div className="card">
           <div className="label">Equity</div>
-          <div className="value">{pf ? fmtUsd(pf.equity_usd) : "…"}</div>
+          <div className={`value mono ${pf ? cls(pf.pnl_usd) : ""}`}>{pf ? fmtUsd(pf.equity_usd) : "…"}</div>
         </div>
         <div className="card">
           <div className="label">Cash</div>
-          <div className="value">{pf ? fmtUsd(pf.cash_usd) : "…"}</div>
+          <div className="value mono">{pf ? fmtUsd(pf.cash_usd) : "…"}</div>
         </div>
         <div className="card">
           <div className="label">Total PnL</div>
           {pf && (
-            <div className={`value ${cls(pf.pnl_usd)}`}>
+            <div className={`value mono ${cls(pf.pnl_usd)}`}>
               {pf.pnl_usd >= 0 ? "+" : ""}
               {fmtUsd(pf.pnl_usd)}
               <span className="muted" style={{ fontSize: 13 }}>
                 {" "}
-                ({pf.pnl_pct >= 0 ? "+" : ""}
-                {pf.pnl_pct.toFixed(2)}%)
+                ({fmtPct(pf.pnl_pct)})
               </span>
             </div>
           )}
@@ -144,7 +114,7 @@ export default function Dashboard() {
         <div className="card">
           <div className="label">Realized today</div>
           {pf && (
-            <div className={`value ${cls(pf.realized_today_usd)}`}>
+            <div className={`value mono ${cls(pf.realized_today_usd)}`}>
               {pf.realized_today_usd >= 0 ? "+" : ""}
               {fmtUsd(pf.realized_today_usd)}
             </div>
@@ -152,16 +122,30 @@ export default function Dashboard() {
         </div>
       </div>
 
+      <div className="panel" style={{ marginBottom: 12 }}>
+        <h2>
+          Equity history
+          <span className="right muted">
+            {equity.length ? `${equity.length} point(s)` : "no data yet"}
+          </span>
+        </h2>
+        <EquityChart points={equity} baseline={pf?.initial_balance_usd} />
+      </div>
+
       <div className="actions">
         <button className="btn primary" onClick={runCycle} disabled={running}>
           {running ? "AI is thinking…" : "Run an AI cycle now"}
         </button>
-        {lastRun && <span className="muted" style={{ fontSize: 13 }}>last: {lastRun}</span>}
+        {lastRun && (
+          <span className="muted" style={{ fontSize: 13 }}>
+            last: {lastRun}
+          </span>
+        )}
       </div>
 
       <div className="grid">
         <div className="panel">
-          <h2>Positions</h2>
+          <h2>Open positions</h2>
           {!pf || pf.positions.length === 0 ? (
             <p className="muted">No open positions.</p>
           ) : (
@@ -179,10 +163,10 @@ export default function Dashboard() {
                 {pf.positions.map((p) => (
                   <tr key={p.symbol}>
                     <td>{p.symbol}</td>
-                    <td>{p.quantity.toLocaleString(undefined, { maximumFractionDigits: 6 })}</td>
-                    <td>{fmtUsd(p.avg_price)}</td>
-                    <td>{fmtUsd(p.value_usd)}</td>
-                    <td className={cls(p.unrealized_pnl_usd)}>{fmtUsd(p.unrealized_pnl_usd)}</td>
+                    <td className="mono">{fmtQty(p.quantity)}</td>
+                    <td className="mono">{fmtUsd(p.avg_price)}</td>
+                    <td className="mono">{fmtUsd(p.value_usd)}</td>
+                    <td className={`mono ${cls(p.unrealized_pnl_usd)}`}>{fmtUsd(p.unrealized_pnl_usd)}</td>
                   </tr>
                 ))}
               </tbody>
@@ -211,7 +195,7 @@ export default function Dashboard() {
                     <td>
                       <span className={`pill ${pill(d.action)}`}>{d.action.toUpperCase()}</span>
                     </td>
-                    <td>{Math.round(d.confidence * 100)}%</td>
+                    <td className="mono">{Math.round(d.confidence * 100)}%</td>
                     <td className="muted">{d.reasoning}</td>
                   </tr>
                 ))}
@@ -246,9 +230,9 @@ export default function Dashboard() {
                       <span className={`pill ${pill(t.side)}`}>{t.side.toUpperCase()}</span>
                     </td>
                     <td>{t.symbol}</td>
-                    <td>{t.quantity.toLocaleString(undefined, { maximumFractionDigits: 6 })}</td>
-                    <td>{fmtUsd(t.price)}</td>
-                    <td className={cls(t.pnl_usd)}>{t.pnl_usd ? fmtUsd(t.pnl_usd) : "—"}</td>
+                    <td className="mono">{fmtQty(t.quantity)}</td>
+                    <td className="mono">{fmtUsd(t.price)}</td>
+                    <td className={`mono ${cls(t.pnl_usd)}`}>{t.pnl_usd ? fmtUsd(t.pnl_usd) : "—"}</td>
                   </tr>
                 ))}
               </tbody>
@@ -257,40 +241,37 @@ export default function Dashboard() {
         </div>
 
         <div className="panel">
-          <h2>Leaderboard</h2>
-          {board.length === 0 ? (
-            <p className="muted">No accounts yet.</p>
-          ) : (
-            <table>
-              <thead>
-                <tr>
-                  <th>#</th>
-                  <th>User</th>
-                  <th>Equity</th>
-                  <th>PnL %</th>
-                </tr>
-              </thead>
-              <tbody>
-                {board.map((u, i) => (
-                  <tr key={`${u.username}-${i}`}>
-                    <td>{i + 1}</td>
-                    <td>{u.username}</td>
-                    <td>{fmtUsd(u.equity_usd)}</td>
-                    <td className={cls(u.pnl_pct)}>
-                      {u.pnl_pct >= 0 ? "+" : ""}
-                      {u.pnl_pct.toFixed(2)}%
-                    </td>
-                  </tr>
-                ))}
-              </tbody>
-            </table>
-          )}
+          <h2>Quick status</h2>
+          <ul className="list" style={{ marginLeft: 0, listStyle: "none" }}>
+            <li>
+              <b>Autopilot</b> —{" "}
+              {me?.autopilot ? <span className="pos">running</span> : <span className="muted">off</span>}{" "}
+              {me?.last_cycle_at ? (
+                <span className="muted">(last cycle {fmtTs(me.last_cycle_at)})</span>
+              ) : null}
+            </li>
+            <li>
+              <b>Copy</b> —{" "}
+              {me?.leader_username ? (
+                <span>
+                  following <b>{me.leader_username}</b>
+                </span>
+              ) : (
+                <span className="muted">none</span>
+              )}
+            </li>
+            <li>
+              <b>Mode</b> — <span className="muted">100% paper (simulated funds)</span>
+            </li>
+            <li>
+              <b>Risk</b> — daily-loss halt, position caps, confidence floor active.
+            </li>
+          </ul>
+          <p className="muted" style={{ marginTop: 8, fontSize: 12 }}>
+            Tune autopilot and copy trading from <a href="/settings">Bot settings</a>.
+          </p>
         </div>
       </div>
-
-      <p className="muted" style={{ marginTop: 14 }}>
-        Paper trading only — this is a simulation with virtual funds.
-      </p>
-    </div>
+    </>
   );
 }

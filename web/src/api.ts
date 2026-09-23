@@ -10,6 +10,15 @@ export function setToken(token: string): void {
 
 export function clearToken(): void {
   localStorage.removeItem("vt_token");
+  localStorage.removeItem("vt_user");
+}
+
+export function setUserName(name: string): void {
+  localStorage.setItem("vt_user", name);
+}
+
+export function getUserName(): string {
+  return localStorage.getItem("vt_user") ?? "";
 }
 
 function headers(): Record<string, string> {
@@ -42,3 +51,12 @@ export async function api<T = any>(path: string, opts: RequestInit = {}): Promis
 
 export const fmtUsd = (n: number | null | undefined, dp = 2): string =>
   n == null || Number.isNaN(n) ? "—" : `$${n.toLocaleString(undefined, { minimumFractionDigits: dp, maximumFractionDigits: dp })}`;
+
+export const fmtPct = (n: number | null | undefined, dp = 2): string =>
+  n == null || Number.isNaN(n) ? "—" : `${n >= 0 ? "+" : ""}${n.toFixed(dp)}%`;
+
+export const fmtQty = (n: number | null | undefined): string =>
+  n == null || Number.isNaN(n) ? "—" : n.toLocaleString(undefined, { maximumFractionDigits: 6 });
+
+export const fmtTs = (ts: number | null | undefined): string =>
+  ts ? new Date(ts * 1000).toLocaleString() : "—";

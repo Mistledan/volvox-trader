@@ -40,6 +40,8 @@ _market_attempt = {"at": 0.0}
 _market_cooldown_s = 30.0
 _price_cache: dict[str, Any] = {"at": 0.0, "prices": {}}
 
+_ticker_cache: dict[str, Any] = {"at": 0.0, "rows": []}
+
 WEB_DIST = PROJECT_ROOT / "web" / "dist"
 
 
@@ -93,6 +95,35 @@ def current_prices(max_age_s: float = 15.0, budget_s: float = 6.0) -> dict[str, 
         pass
     _price_cache = {"at": now, "prices": prices}
     return prices
+
+
+def current_markets(max_age_s: float = 15.0, budget_s: float = 8.0) -> list[dict[str, Any]]:
+    global _ticker_cache
+    now = time.time()
+    if now - _ticker_cache["at"] < max_age_s:
+        return _ticker_cache["rows"]
+    rows: list[dict[str, Any]] = []
+    try:
+        market = get_market()
+        deadline = time.time() + budget_s
+        for sym in cfg.symbols:
+            if time.time() > deadline:
+                break
+            try:
+                t = market.fetch_ticker(sym)
+                rows.append({
+                    "symbol": sym,
+                    "last": float(t.get("last") or 0.0),
+                    "change_pct_24h": float(t.get("change_pct_24h") or 0.0),
+                    "high_24h": float(t.get("high_24h") or 0.0),
+                    "low_24h": float(t.get("low_24h") or 0.0),
+                })
+            except Exception:  # noqa: BLE001
+                pass
+    except Exception:  # noqa: BLE001
+        pass
+    _ticker_cache = {"at": now, "rows": rows}
+    return rows
 
 
 def _auth_user(authorization: str | None) -> tuple[User, Account]:
@@ -404,9 +435,8 @@ def leaderboard() -> dict[str, list[dict[str, Any]]]:
 
 @app.get("/api/v1/markets")
 def markets() -> dict[str, Any]:
-    prices = current_prices()
     return {
-        "markets": [{"symbol": sym, "last": float(px)} for sym, px in prices.items()],
+        "markets": current_markets(),
         "updated_at": time.strftime("%Y-%m-%d %H:%M:%S"),
     }
 

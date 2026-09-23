@@ -1,6 +1,6 @@
 import { useState, type FormEvent } from "react";
 import { useNavigate, Link } from "react-router-dom";
-import { api, setToken } from "../api";
+import { api, setToken, setUserName } from "../api";
 
 export default function Register() {
   const nav = useNavigate();
@@ -14,11 +14,12 @@ export default function Register() {
     setBusy(true);
     setErr("");
     try {
-      const r = await api<{ token: string }>("/api/v1/auth/register", {
+      const r = await api<{ token: string; username: string }>("/api/v1/auth/register", {
         method: "POST",
         body: JSON.stringify({ username, password }),
       });
       setToken(r.token);
+      setUserName(r.username);
       nav("/dashboard");
     } catch (ex) {
       setErr(String((ex as Error).message));
