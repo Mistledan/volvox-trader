@@ -15,19 +15,29 @@ def _fresh_db() -> str:
     return f"sqlite:///{tempfile.mkdtemp()}/server.sqlite3"
 
 
+class FakeMarket:
+    """Deterministic market feed so API tests never touch the network."""
+
+    def fetch_ticker(self, symbol):
+        return {"last": 50000.0}
+
+    def fetch_market_snapshot(self, timeframe="1h", limit=200):
+        return {"BTC/USDT": {"features": {"rsi_14": 55.0, "sma_20": 100.0}, "ticker": {"last": 50000.0}}}
+
+
 @pytest.fixture
 def client(monkeypatch, tmp_path):
-    from ai_trader import db as db_module
     from ai_trader import server as server_module
 
     monkeypatch.setenv("DATABASE_URL", _fresh_db())
     monkeypatch.setenv("AI_TRADER_FAKE_LLM", "1")
-    # re-init modules against the fresh DB
+    # Reload ONLY the server module: it calls init_db() against the fresh
+    # DATABASE_URL above and re-binds its db imports. Reloading ai_trader.db
+    # itself would re-register mappers and poison later test files.
     import importlib
 
-    for mod in ("ai_trader.db", "ai_trader.server"):
-        importlib.reload(importlib.import_module(mod))
-    server = importlib.import_module("ai_trader.server")
+    server = importlib.reload(server_module)
+    monkeypatch.setattr(server, "get_market", lambda: FakeMarket())
     return TestClient(server.app)
 
 

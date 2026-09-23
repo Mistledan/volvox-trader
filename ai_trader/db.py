@@ -12,7 +12,7 @@ from contextlib import contextmanager
 from pathlib import Path
 from typing import Iterator
 
-from sqlalchemy import Float, ForeignKey, String, UniqueConstraint, create_engine
+from sqlalchemy import Float, ForeignKey, Integer, String, UniqueConstraint, create_engine
 from sqlalchemy.engine import Engine
 from sqlalchemy.orm import DeclarativeBase, Mapped, mapped_column, relationship, sessionmaker, Session
 
@@ -43,6 +43,7 @@ class ApiToken(Base):
     token_hash: Mapped[str] = mapped_column(String(64), unique=True)
     created_at: Mapped[float] = mapped_column(Float, default=time.time)
     last_used_at: Mapped[float | None] = mapped_column(Float, nullable=True)
+    expires_at: Mapped[float | None] = mapped_column(Float, nullable=True)
 
     user: Mapped[User] = relationship(back_populates="tokens")
 
@@ -56,6 +57,9 @@ class Account(Base):
     initial_balance: Mapped[float] = mapped_column(Float, default=10000.0)
     cash_usd: Mapped[float] = mapped_column(Float, default=10000.0)
     created_at: Mapped[float] = mapped_column(Float, default=time.time)
+    autopilot: Mapped[int] = mapped_column(Integer, default=0)
+    leader_account_id: Mapped[int | None] = mapped_column(Integer, nullable=True)
+    last_cycle_at: Mapped[float | None] = mapped_column(Float, nullable=True)
 
     user: Mapped[User] = relationship(back_populates="accounts")
     holdings: Mapped[list["Holding"]] = relationship(back_populates="account", cascade="all, delete-orphan")
@@ -111,12 +115,42 @@ class DecisionRecord(Base):
     account: Mapped[Account] = relationship(back_populates="decisions")
 
 
+class EquitySnapshot(Base):
+    __tablename__ = "equity_snapshots"
+
+    id: Mapped[int] = mapped_column(primary_key=True)
+    account_id: Mapped[int] = mapped_column(ForeignKey("accounts.id", ondelete="CASCADE"), index=True)
+    equity: Mapped[float] = mapped_column(Float, default=0.0)
+    timestamp: Mapped[float] = mapped_column(Float, default=time.time, index=True)
+
+    account: Mapped[Account] = relationship()
+
+
 _engine: Engine | None = None
 _session_factory: sessionmaker | None = None
 
 
 def get_db_url() -> str:
     return os.getenv("DATABASE_URL") or f"sqlite:///{PROJECT_ROOT / 'data' / 'volvox.sqlite3'}"
+
+
+def _ensure_column(engine: Engine, table: str, definition: str) -> None:
+    """Idempotently add a column to an existing table (no alembic here)."""
+    try:
+        with engine.begin() as conn:
+            conn.exec_driver_sql(f"ALTER TABLE {table} ADD COLUMN {definition}")
+    except Exception:
+        pass
+
+
+def _migrate(engine: Engine) -> None:
+    for table, definition in [
+        ("accounts", "autopilot INTEGER NOT NULL DEFAULT 0"),
+        ("accounts", "leader_account_id INTEGER"),
+        ("accounts", "last_cycle_at FLOAT"),
+        ("api_tokens", "expires_at FLOAT"),
+    ]:
+        _ensure_column(engine, table, definition)
 
 
 def init_db(url: str | None = None) -> Engine:
@@ -128,6 +162,7 @@ def init_db(url: str | None = None) -> Engine:
     if db_url.startswith("sqlite"):
         Path(db_url.replace("sqlite:///", "")).parent.mkdir(parents=True, exist_ok=True)
     Base.metadata.create_all(_engine)
+    _migrate(_engine)
     return _engine
 
 

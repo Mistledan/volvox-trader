@@ -3,10 +3,14 @@ from __future__ import annotations
 
 import hashlib
 import hmac
+import os
 import secrets
+import time
 
 _ITERATIONS = 600_000
 _SALT_BYTES = 16
+
+TOKEN_TTL_SECONDS = float(os.getenv("TOKEN_TTL_SECONDS", str(7 * 24 * 3600)))
 
 
 def hash_password(password: str) -> str:
@@ -31,3 +35,8 @@ def new_token() -> str:
 
 def token_hash(token: str) -> str:
     return hashlib.sha256(token.encode("utf-8")).hexdigest()
+
+
+def token_expiry() -> float:
+    """Unix timestamp at which a freshly-issued token expires."""
+    return time.time() + TOKEN_TTL_SECONDS

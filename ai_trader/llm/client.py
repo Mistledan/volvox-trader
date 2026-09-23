@@ -9,8 +9,10 @@ import json
 from typing import Any
 
 from dotenv import load_dotenv
-from litellm import completion
 
+# NOTE: litellm is imported lazily inside complete() — importing it at module
+# level costs ~20s of CPU (openai/pydantic type-tree construction) even when
+# the server only ever uses the FakeLLM / Ollama paths. Keep cold start fast.
 from ..config import PROJECT_ROOT, LLMConfig
 from ..utils.logging import get_logger
 
@@ -50,6 +52,8 @@ class LLMClient:
             "max_tokens": max_tokens if max_tokens is not None else self.max_tokens,
         }
         try:
+            from litellm import completion
+
             resp = completion(**kwargs)
             content = resp.choices[0].message.content or ""
             log.debug("llm.response(%d chars)", len(content))

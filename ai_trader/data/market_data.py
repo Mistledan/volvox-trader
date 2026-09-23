@@ -1,6 +1,7 @@
 """Market data fetching via ccxt (exchange-agnostic, multi-exchange fallback)."""
 from __future__ import annotations
 
+import os
 import time
 from typing import Callable, TypeVar
 
@@ -54,7 +55,9 @@ class MarketData:
         for cfg in exchange_cfgs:
             try:
                 optioned = self._instantiate(cfg.id, cfg.sandbox)
-                _retry(f"Exchange {cfg.id} load_markets", optioned.load_markets, attempts=2)
+                # single connectivity probe per candidate; the real market
+                # layer retries heavier (load_markets / fetch_*) afterwards.
+                _retry(f"Exchange {cfg.id} probe", optioned.load_markets, attempts=1)
                 self._ex = optioned
                 self._exchange_id = cfg.id
                 break
@@ -70,7 +73,13 @@ class MarketData:
         klass = getattr(ccxt, exchange_id)
         if klass is None:
             raise MarketDataError(f"Unknown ccxt exchange id: {exchange_id!r}")
-        ex = klass({"enableRateLimit": True})
+        ex = klass(
+            {
+                "enableRateLimit": True,
+                "timeout": int(os.getenv("MARKET_TIMEOUT_MS", "5000")),
+                "connectTimeout": int(os.getenv("MARKET_CONNECT_TIMEOUT_MS", "3000")),
+            }
+        )
         ex.set_sandbox_mode(sandbox)
         return ex
 
@@ -104,9 +113,9 @@ class MarketData:
         df = indicators.to_frame(raw)
         return indicators.compute_features(df)
 
-    def fetch_ticker(self, symbol: str) -> dict:
+    def fetch_ticker(self, symbol: str, attempts: int = 2) -> dict:
         try:
-            ticker = _retry(f"fetch_ticker {symbol}", lambda: self._ex.fetch_ticker(symbol))
+            ticker = _retry(f"fetch_ticker {symbol}", lambda: self._ex.fetch_ticker(symbol), attempts=attempts, base_delay=0.25)
         except MarketDataError as exc:
             raise MarketDataError(f"fetch_ticker failed for {symbol}: {exc}") from exc
         return {
