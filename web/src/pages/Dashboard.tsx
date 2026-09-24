@@ -21,22 +21,25 @@ export default function Dashboard() {
 
   const load = useCallback(async (refresh = false) => {
     setErr("");
-    try {
-      const [p, d, t, e, m] = (await Promise.all([
-        api<Portfolio>("/api/v1/me/portfolio", refresh ? { cache: "no-store" } : undefined),
-        api<{ decisions: Decision[] }>("/api/v1/me/decisions", refresh ? { cache: "no-store" } : undefined),
-        api<{ trades: TradeRec[] }>("/api/v1/me/trades", refresh ? { cache: "no-store" } : undefined),
-        api<{ points: EquityPoint[] }>("/api/v1/me/equity", refresh ? { cache: "no-store" } : undefined),
-        api<Me>("/api/v1/me"),
-      ])) as [Portfolio, { decisions: Decision[] }, { trades: TradeRec[] }, { points: EquityPoint[] }, Me];
-      setPf(p);
-      setDecisions(d.decisions);
-      setTrades(t.trades);
-      setEquity(e.points);
-      setMe(m);
-    } catch (ex) {
-      setErr(String((ex as Error).message));
-    }
+    const opts: RequestInit = refresh ? { cache: "no-store" } : {};
+    const rec = <T,>(p: string, set: (v: T) => void) => {
+      const c = new AbortController();
+      const to = setTimeout(() => c.abort(), 20000);
+      return api<T>(p, { ...opts, signal: c.signal })
+        .then(set)
+        .catch((ex: unknown) => {
+          if ((ex as Error).name === "AbortError") return;
+          setErr(`${p.split("/").pop()}: ${(ex as Error).message}`);
+        })
+        .finally(() => clearTimeout(to));
+    };
+    await Promise.allSettled([
+      rec<Portfolio>("/api/v1/me/portfolio", setPf),
+      rec<{ decisions: Decision[] }>("/api/v1/me/decisions", (j) => setDecisions(j.decisions)),
+      rec<{ trades: TradeRec[] }>("/api/v1/me/trades", (j) => setTrades(j.trades)),
+      rec<{ points: EquityPoint[] }>("/api/v1/me/equity", (j) => setEquity(j.points)),
+      rec<Me>("/api/v1/me", setMe),
+    ]);
   }, []);
 
   useEffect(() => {
@@ -135,6 +138,9 @@ export default function Dashboard() {
       <div className="actions">
         <button className="btn primary" onClick={runCycle} disabled={running}>
           {running ? "AI is thinking…" : "Run an AI cycle now"}
+        </button>
+        <button className="btn" onClick={() => load(true)}>
+          Refresh
         </button>
         {lastRun && (
           <span className="muted" style={{ fontSize: 13 }}>
